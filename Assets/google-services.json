@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "612871245547",
+    "project_id": "ministarcraftrts",
+    "storage_bucket": "ministarcraftrts.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:612871245547:android:bb569227d2711fd09738ae",
+        "android_client_info": {
+          "package_name": "com.ministarcraft.rts"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRDefWvqoXv57sob4RFXYzIRK43pvfbsk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
