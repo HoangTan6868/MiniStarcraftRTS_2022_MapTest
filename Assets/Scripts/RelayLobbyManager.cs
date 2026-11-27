@@ -31,6 +31,13 @@ public class RelayLobbyManager : MonoBehaviour
     [Header("BUTTONS")]
     public Button startMatchButton;
 
+    [Header("MATCH LOADING")]
+    [Tooltip("Attach StartCraftNetworkLoading from NetworkManager")]
+    public StartCraftNetworkLoading networkLoading;
+
+    [Range(1, 4)]
+    public int minimumPlayersToStart = 2;
+
     private const int MaxPlayers = 4;
     private const int MaxClients = 3;
 
@@ -42,16 +49,15 @@ public class RelayLobbyManager : MonoBehaviour
     private bool callbacksRegistered = false;
     private bool matchStarted = false;
 
-    // =========================================
+    // ========================================
     // 1. KHOI TAO
-    // =========================================
+    // ========================================
 
     private void Awake()
     {
         if (networkManager == null)
         {
-            networkManager =
-                FindObjectOfType<NetworkManager>();
+            networkManager = FindObjectOfType<NetworkManager>();
         }
 
         if (networkManager == null)
@@ -88,20 +94,34 @@ public class RelayLobbyManager : MonoBehaviour
         callbacksRegistered = true;
 
         if (roomCodeText != null)
+        {
             roomCodeText.text = "ROOM ID: ------";
+        }
+
+        if (networkLoading == null)
+        {
+            networkLoading =
+                networkManager.GetComponent<StartCraftNetworkLoading>();
+        }
 
         UpdatePlayerUI(0);
 
-        // START MATCH chua duoc lap trinh
+        // Tu dong gan su kien Start Match
+        // Khong can them On Click trong Inspector
         if (startMatchButton != null)
-            startMatchButton.interactable = false;
+        {
+            startMatchButton.onClick.RemoveListener(StartMatch);
+            startMatchButton.onClick.AddListener(StartMatch);
+        }
+
+        UpdateStartMatchButton();
 
         Debug.Log("Relay Lobby Manager READY!");
     }
 
-    // =========================================
+    // ========================================
     // 2. UNITY SERVICES
-    // =========================================
+    // ========================================
 
     private async Task InitializeServices()
     {
@@ -120,9 +140,9 @@ public class RelayLobbyManager : MonoBehaviour
         Debug.Log("Unity Authentication READY!");
     }
 
-    // =========================================
+    // ========================================
     // 3. CREATE ROOM - HOST
-    // =========================================
+    // ========================================
 
     public async void CreateRoom()
     {
@@ -155,7 +175,6 @@ public class RelayLobbyManager : MonoBehaviour
                 new RelayServerData(allocation, "dtls")
             );
 
-            // Khoi dong Host truoc
             bool started = networkManager.StartHost();
 
             if (!started)
@@ -165,11 +184,12 @@ public class RelayLobbyManager : MonoBehaviour
                 );
             }
 
-            // Dang ky message SAU khi khoi dong
             RegisterCountMessages();
 
             if (roomCodeText != null)
+            {
                 roomCodeText.text = "ROOM ID: " + joinCode;
+            }
 
             BroadcastPlayerCount();
 
@@ -190,12 +210,13 @@ public class RelayLobbyManager : MonoBehaviour
         finally
         {
             isBusy = false;
+            UpdateStartMatchButton();
         }
     }
 
-    // =========================================
+    // ========================================
     // 4. JOIN ROOM - CLIENT
-    // =========================================
+    // ========================================
 
     public async void JoinRoom()
     {
@@ -225,6 +246,7 @@ public class RelayLobbyManager : MonoBehaviour
         }
 
         isBusy = true;
+
         ShowStatus("Dang tham gia phong...");
 
         try
@@ -239,7 +261,6 @@ public class RelayLobbyManager : MonoBehaviour
                 new RelayServerData(allocation, "dtls")
             );
 
-            // Khoi dong Client truoc
             bool started = networkManager.StartClient();
 
             if (!started)
@@ -249,15 +270,15 @@ public class RelayLobbyManager : MonoBehaviour
                 );
             }
 
-            // Dang ky sau khi StartClient
             RegisterCountMessages();
 
             if (roomCodeText != null)
+            {
                 roomCodeText.text = "ROOM ID: " + code;
+            }
 
             ShowStatus("Dang ket noi voi HOST...");
 
-            // Neu da ket noi thi yeu cau cap nhat
             if (networkManager.IsConnectedClient)
             {
                 RequestPlayerCount();
@@ -274,12 +295,13 @@ public class RelayLobbyManager : MonoBehaviour
         finally
         {
             isBusy = false;
+            UpdateStartMatchButton();
         }
     }
 
-    // =========================================
-    // 5. KIEM TRA GIOI HAN PHONG
-    // =========================================
+    // ========================================
+    // 5. CONNECTION APPROVAL
+    // ========================================
 
     private void ApproveConnection(
         NetworkManager.ConnectionApprovalRequest request,
@@ -303,9 +325,9 @@ public class RelayLobbyManager : MonoBehaviour
         }
     }
 
-    // =========================================
-    // 6. DANG KY NETWORK MESSAGES
-    // =========================================
+    // ========================================
+    // 6. NETWORK MESSAGES
+    // ========================================
 
     private void RegisterCountMessages()
     {
@@ -318,7 +340,6 @@ public class RelayLobbyManager : MonoBehaviour
             Debug.LogWarning(
                 "CustomMessagingManager chua san sang!"
             );
-
             return;
         }
 
@@ -339,9 +360,9 @@ public class RelayLobbyManager : MonoBehaviour
         Debug.Log("Lobby messages READY!");
     }
 
-    // =========================================
-    // 7. CLIENT KET NOI THANH CONG
-    // =========================================
+    // ========================================
+    // 7. CLIENT CONNECTED
+    // ========================================
 
     private void OnClientConnected(ulong clientId)
     {
@@ -351,21 +372,24 @@ public class RelayLobbyManager : MonoBehaviour
         if (networkManager.IsServer)
         {
             BroadcastPlayerCount();
+            UpdateStartMatchButton();
         }
         else if (clientId == networkManager.LocalClientId)
         {
             ShowStatus("Da ket noi vao phong!");
 
             if (!messageRegistered)
+            {
                 RegisterCountMessages();
+            }
 
             RequestPlayerCount();
         }
     }
 
-    // =========================================
-    // 8. CLIENT NGAT KET NOI
-    // =========================================
+    // ========================================
+    // 8. CLIENT DISCONNECTED
+    // ========================================
 
     private void OnClientDisconnected(ulong clientId)
     {
@@ -375,6 +399,7 @@ public class RelayLobbyManager : MonoBehaviour
         if (networkManager.IsServer)
         {
             BroadcastPlayerCount();
+            UpdateStartMatchButton();
         }
         else if (clientId == networkManager.LocalClientId)
         {
@@ -393,9 +418,9 @@ public class RelayLobbyManager : MonoBehaviour
         }
     }
 
-    // =========================================
-    // 9. CLIENT YEU CAU CAP NHAT SO NGUOI
-    // =========================================
+    // ========================================
+    // 9. REQUEST PLAYER COUNT
+    // ========================================
 
     private void RequestPlayerCount()
     {
@@ -421,9 +446,9 @@ public class RelayLobbyManager : MonoBehaviour
         }
     }
 
-    // =========================================
-    // 10. HOST NHAN YEU CAU TU CLIENT
-    // =========================================
+    // ========================================
+    // 10. RECEIVE COUNT REQUEST
+    // ========================================
 
     private void ReceiveCountRequest(
         ulong senderId,
@@ -435,9 +460,7 @@ public class RelayLobbyManager : MonoBehaviour
             return;
         }
 
-        // FIX LOI CS0453 VA CS0315:
-        // ConnectedClients la dictionary.
-        // ContainsKey kiem tra Client ID hop le.
+        // ConnectedClients la dictionary
         if (!networkManager.ConnectedClients.ContainsKey(senderId))
         {
             return;
@@ -446,9 +469,9 @@ public class RelayLobbyManager : MonoBehaviour
         SendPlayerCount(senderId);
     }
 
-    // =========================================
-    // 11. GUI SO NGUOI CHO MOT CLIENT
-    // =========================================
+    // ========================================
+    // 11. SEND PLAYER COUNT
+    // ========================================
 
     private void SendPlayerCount(ulong clientId)
     {
@@ -476,9 +499,9 @@ public class RelayLobbyManager : MonoBehaviour
         }
     }
 
-    // =========================================
-    // 12. HOST DONG BO DANH SACH
-    // =========================================
+    // ========================================
+    // 12. BROADCAST PLAYER COUNT
+    // ========================================
 
     private void BroadcastPlayerCount()
     {
@@ -506,9 +529,9 @@ public class RelayLobbyManager : MonoBehaviour
         }
     }
 
-    // =========================================
-    // 13. CLIENT NHAN SO NGUOI
-    // =========================================
+    // ========================================
+    // 13. RECEIVE PLAYER COUNT
+    // ========================================
 
     private void ReceivePlayerCount(
         ulong senderId,
@@ -528,9 +551,9 @@ public class RelayLobbyManager : MonoBehaviour
         UpdatePlayerUI(count);
     }
 
-    // =========================================
-    // 14. CAP NHAT PLAYER SLOTS
-    // =========================================
+    // ========================================
+    // 14. UPDATE PLAYER UI
+    // ========================================
 
     private void UpdatePlayerUI(int count)
     {
@@ -556,19 +579,25 @@ public class RelayLobbyManager : MonoBehaviour
             if (i < count)
             {
                 if (i == 0)
+                {
                     role = "HOST";
+                }
                 else
+                {
                     role = "CLIENT";
+                }
             }
 
             playerSlots[i].text =
                 "PLAYER " + (i + 1) + " - " + role;
         }
+
+        UpdateStartMatchButton();
     }
 
-    // =========================================
-    // 15. HIEN THI THONG BAO
-    // =========================================
+    // ========================================
+    // 15. SHOW STATUS
+    // ========================================
 
     private void ShowStatus(string message)
     {
@@ -580,12 +609,131 @@ public class RelayLobbyManager : MonoBehaviour
         Debug.Log(message);
     }
 
-    // =========================================
-    // 16. DON DEP SU KIEN
-    // =========================================
+    // ========================================
+    // 16. START MATCH + LOADING
+    // ========================================
+
+    private void UpdateStartMatchButton()
+    {
+        if (startMatchButton == null)
+            return;
+
+        int count = 0;
+
+        if (networkManager != null &&
+            networkManager.IsListening &&
+            networkManager.IsHost)
+        {
+            count = networkManager.ConnectedClientsIds.Count;
+        }
+
+        // Chi Host duoc phep bat dau tran
+        // Phai du so nguoi va co Network Loading
+        startMatchButton.interactable =
+            networkManager != null &&
+            networkManager.IsListening &&
+            networkManager.IsHost &&
+            networkManager.NetworkConfig.EnableSceneManagement &&
+            networkLoading != null &&
+            count >= Mathf.Clamp(
+                minimumPlayersToStart, 1, MaxPlayers
+            ) &&
+            !isBusy &&
+            !matchStarted;
+    }
+
+    public void StartMatch()
+    {
+        if (isBusy || matchStarted)
+            return;
+
+        if (networkManager == null ||
+            !networkManager.IsListening ||
+            !networkManager.IsHost)
+        {
+            ShowStatus("Chi HOST moi duoc bat dau tran!");
+            return;
+        }
+
+        int count =
+            networkManager.ConnectedClientsIds.Count;
+
+        int minimum =
+            Mathf.Clamp(minimumPlayersToStart, 1, MaxPlayers);
+
+        if (count < minimum)
+        {
+            ShowStatus(
+                "Can it nhat " + minimum +
+                " nguoi de bat dau tran!"
+            );
+            return;
+        }
+
+        if (!networkManager.NetworkConfig.EnableSceneManagement)
+        {
+            ShowStatus(
+                "Hay bat Enable Scene Management tren NetworkManager!"
+            );
+            return;
+        }
+
+        if (networkLoading == null)
+        {
+            networkLoading =
+                networkManager.GetComponent<StartCraftNetworkLoading>();
+        }
+
+        if (networkLoading == null)
+        {
+            ShowStatus(
+                "Chua gan StartCraftNetworkLoading vao NetworkManager!"
+            );
+            return;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(
+            networkLoading.matchScene))
+        {
+            ShowStatus(
+                "Chua them scene " +
+                networkLoading.matchScene +
+                " vao Build Settings!"
+            );
+            return;
+        }
+
+        if (networkManager.SceneManager == null)
+        {
+            ShowStatus(
+                "Network SceneManager chua san sang!"
+            );
+            return;
+        }
+
+        matchStarted = true;
+
+        UpdateStartMatchButton();
+
+        ShowStatus(
+            "Dang tai ban do va dong bo nguoi choi..."
+        );
+
+        // Goi he thong Loading Multiplayer
+        networkLoading.StartMatch();
+    }
+
+    // ========================================
+    // 17. CLEANUP
+    // ========================================
 
     private void OnDestroy()
     {
+        if (startMatchButton != null)
+        {
+            startMatchButton.onClick.RemoveListener(StartMatch);
+        }
+
         if (networkManager == null)
             return;
 
